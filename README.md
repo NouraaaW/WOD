@@ -27,36 +27,6 @@ The system follows a **three-tier architecture**:
 
 ---
 
-## 🗂️ Main Pages
-| Page | Description |
-|------|--------------|
-| `index.html` | Homepage and main navigation |
-| `login.html` | User login page |
-| `signup.html` | User registration |
-| `posts.html` | Gift ideas gallery |
-| `wishlist.html` | User's wishlist |
-| `friend-wishlist.html` | View friends’ wishlists |
-| `group_contribution.html` | Group gift details |
-| `calendar.html` | Event and reminder page |
-| `profile.html` | User profile |
-
----
-
-## 💾 Database
-Implemented using **MySQL** with 8 tables:
-- `users`
-- `posts`
-- `wishlists`
-- `wishlist_items`
-- `group_contributions`
-- `reservations`
-- `notifications`
-- `events`
-
-Each table is designed for scalability and future integration with e-commerce APIs.
-
----
-
 
 ## 🧰 Tools & Technologies
 - HTML5, CSS3, JavaScript  
@@ -65,17 +35,6 @@ Each table is designed for scalability and future integration with e-commerce AP
 - Visual Studio Code  
 - phpMyAdmin  
 - Canva & Figma for UI design  
-
----
-
-## 🚀 Deployment
-The project is hosted on **GitHub Pages**:  
-🔗 [https://renadl.github.io/WOD/](https://renadl.github.io/WOD/)
-
----
-
-## 📸 Preview
-![WOD Interface](images/Box%20Logo%20(2)%202.png)
 
 ---
 

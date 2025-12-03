@@ -57,6 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $post_id = $_POST['post_id'];
         $username = getCurrentUser();
 
+        // Check if user is a store
+        $stmt = $pdo->prepare("SELECT user_type FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Store accounts can't add to wishlist
+        if ($user && $user['user_type'] === 'store') {
+            $_SESSION['error'] = "Store accounts cannot add items to wishlist.";
+            header("Location: profile.php");
+            exit();
+        }
+
         // Get post details
         $stmt = $pdo->prepare("SELECT * FROM posts WHERE post_id = ?");
         $stmt->execute([$post_id]);

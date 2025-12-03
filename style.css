@@ -19,7 +19,6 @@ body {
   position: relative;
   overflow-x: hidden;
 
-  /* 👇 نخلي الصفحة عمود flex بحيث الفوتر يلتصق تحت */
   min-height: 100vh;
   display: flex;
   flex-direction: column;

@@ -4,6 +4,17 @@ requireLogin();
 
 $username = getCurrentUser();
 
+// Check if user is a store
+$stmt = $pdo->prepare("SELECT user_type FROM users WHERE username = ?");
+$stmt->execute([$username]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Store accounts can't add wishlist items
+if ($user && $user['user_type'] === 'store') {
+    header("Location: profile.php");
+    exit();
+}
+
 // Get user's wishlist (or create if not exists)
 $stmt = $pdo->prepare("SELECT wishlist_id FROM wishlists WHERE username = ?");
 $stmt->execute([$username]);

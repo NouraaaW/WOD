@@ -31,13 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $post_id = (int) $_POST['post_id'];
         $username = getCurrentUser();
 
+        // First check if current user is a store
+        $stmt = $pdo->prepare("SELECT user_type FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // If user is a store, show error and redirect
+        if ($user && $user['user_type'] === 'store') {
+            $_SESSION['error'] = "Store accounts cannot add items to wishlist.";
+            header("Location: posts.php");
+            exit();
+        }
+
         // Get post details
         $stmt = $pdo->prepare("SELECT * FROM posts WHERE post_id = ?");
         $stmt->execute([$post_id]);
         $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($post) {
-            // Get user's wishlist (or create if not exists)
+            // Get user's wishlist (or create if not exists) - only for regular users
             $stmt = $pdo->prepare("SELECT wishlist_id FROM wishlists WHERE username = ?");
             $stmt->execute([$username]);
             $wishlist = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -58,10 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if ($stmt->rowCount() === 0) {
                 // Add to wishlist - FIXED VERSION
                 $stmt = $pdo->prepare("
-                    INSERT INTO wishlist_items 
-                    (title, external_link, image_url, price, wishlist_id, post_id) 
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
+                INSERT INTO wishlist_items 
+                (title, external_link, image_url, price, wishlist_id, post_id) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
                 $stmt->execute([
                     $post['title'],
                     $post['external_link'] ?? '', // Use empty string if null
@@ -607,72 +619,72 @@ try {
             .liked .fa-heart {
                 color: #650000 !important;
             }
-            
-                .create-post-btn {
-        position: fixed;
-        bottom: 80px; 
-        right: 30px;
-        background: #f5c0d3;
-        color: white;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        box-shadow: 0 4px 15px rgba(245, 192, 211, 0.5);
-        z-index: 9999;
-        transition: all 0.3s ease;
-    }
 
-    .footer {
-        position: relative;
-        z-index: 1;
-    }
+            .create-post-btn {
+                position: fixed;
+                bottom: 80px;
+                right: 30px;
+                background: #f5c0d3;
+                color: white;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                box-shadow: 0 4px 15px rgba(245, 192, 211, 0.5);
+                z-index: 9999;
+                transition: all 0.3s ease;
+            }
 
-    /* No Posts Message Styling */
-    .no-posts-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 60px 20px;
-        color: #650000;
-        width: 100%;
-        column-span: all;
-    }
+            .footer {
+                position: relative;
+                z-index: 1;
+            }
 
-    .no-posts-icon {
-        font-size: 3rem;
-        color: #B77E7E;
-        margin-bottom: 20px;
-    }
+            /* No Posts Message Styling */
+            .no-posts-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 60px 20px;
+                color: #650000;
+                width: 100%;
+                column-span: all;
+            }
 
-    .no-posts-message {
-        font-size: 1.2rem;
-        margin-bottom: 25px;
-        line-height: 1.5;
-    }
+            .no-posts-icon {
+                font-size: 3rem;
+                color: #B77E7E;
+                margin-bottom: 20px;
+            }
 
-    .no-posts-btn {
-        text-decoration: none;
-        margin-top: 15px;
-        display: inline-block;
-        padding: 12px 24px;
-        background-color: #B77E7E;
-        color: white;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        font-weight: 500;
-    }
+            .no-posts-message {
+                font-size: 1.2rem;
+                margin-bottom: 25px;
+                line-height: 1.5;
+            }
 
-    .no-posts-btn:hover {
-        background-color: #650000;
-        transform: translateY(-2px);
-    }
-            
+            .no-posts-btn {
+                text-decoration: none;
+                margin-top: 15px;
+                display: inline-block;
+                padding: 12px 24px;
+                background-color: #B77E7E;
+                color: white;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                font-weight: 500;
+            }
+
+            .no-posts-btn:hover {
+                background-color: #650000;
+                transform: translateY(-2px);
+            }
+
         </style>
     </head>
     <body>
@@ -719,7 +731,7 @@ try {
                             <p class="posts-header-subtitle">Explore amazing gift ideas from your friends and community</p>
                         </div>
                     </div>
-                    
+
                     <!-- Search Bar Section -->
                     <div class="posts-search-wrapper">
                         <form action="search_friends.php" method="GET" style="width: 100%; display: block;">
@@ -847,4 +859,4 @@ try {
             <p style="color: #666 !important; background: transparent !important; margin: 0;">© 2025 WOD — All Rights Reserved.</p>
         </footer>
     </body>
-</html>"
+</html>

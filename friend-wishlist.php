@@ -30,22 +30,28 @@ $stmt = $pdo->prepare("SELECT * FROM friends WHERE (username_1 = ? AND username_
 $stmt->execute([$current_user, $friend_username, $friend_username, $current_user]);
 $is_following = $stmt->rowCount() > 0;
 
-// Get wishlist items - ONLY if wishlist is public (visibility = 1)
+// Get wishlist items - handle both public and private (for followers)
 $wishlist_items = [];
 $can_view_wishlist = false;
 
-if ($wishlist && $wishlist['visibility'] == 1) {
-    // Only show wishlist if it's public
+if ($wishlist) {
+    // Check if user can view the wishlist
+    if ($wishlist['visibility'] == 1 || ($wishlist['visibility'] == 0 && $is_following)) {
+        $can_view_wishlist = true;
+        $stmt = $pdo->prepare("
+            SELECT wi.*, 
+                   (SELECT COUNT(*) FROM group_gifts gg WHERE gg.item_id = wi.item_id) as group_gift_count
+            FROM wishlist_items wi 
+            WHERE wi.wishlist_id = ? 
+            ORDER BY wi.created_at DESC
+        ");
+        $stmt->execute([$wishlist['wishlist_id']]);
+        $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+} else {
+    // No wishlist exists yet - user can still view the page
     $can_view_wishlist = true;
-    $stmt = $pdo->prepare("
-        SELECT wi.*, 
-               (SELECT COUNT(*) FROM group_gifts gg WHERE gg.item_id = wi.item_id) as group_gift_count
-        FROM wishlist_items wi 
-        WHERE wi.wishlist_id = ? 
-        ORDER BY wi.created_at DESC
-    ");
-    $stmt->execute([$wishlist['wishlist_id']]);
-    $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $wishlist_items = []; // Empty array
 }
 
 // Get friend's posts count
@@ -118,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group_gift']) 
     $stmt->execute([$item_id]);
     $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($item && $item['price'] > 0 && !$item['is_reserved'] && $item['group_gift_count'] == 0) {
+    if ($item && $item['price'] >= 0 && !$item['is_reserved'] && $item['group_gift_count'] == 0) {
         $share_amount = $item['price'] / $participant_count;
 
         // Get participant usernames from individual inputs and validate them
@@ -188,6 +194,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group_gift']) 
         header("Location: friend-wishlist.php?username=" . urlencode($friend_username));
         exit();
     }
+}
+
+// Check if friend is a store - stores don't have wishlists
+if ($friend['user_type'] === 'store') {
+    $store = 1;
+} else {
+    $store = 0;
 }
 ?>
 <!DOCTYPE html>
@@ -871,51 +884,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group_gift']) 
                 </div>
             </section>
 
-
             <!-- Profile Tabs -->
             <section class="profile-tabs">
                 <div class="tabs-container">
                     <a href="friend_profile.php?username=<?php echo urlencode($friend_username); ?>" class="tab" data-tab="posts">
                         <i class="fas fa-gift"></i> Posts
                     </a>
-                    <?php if ($wishlist && $wishlist['visibility'] == 1): ?>
-                        <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab active" data-tab="wishlist">
-                            <i class="fas fa-heart"></i> Wishlist
-                        </a>
-                    <?php else: ?>
-                        <span class="wishlist-private-tab" title="<?php echo $wishlist ? 'Wishlist is private' : 'No wishlist'; ?>">
-                            <i class="fas fa-heart"></i> Wishlist 
-                            <?php if ($wishlist && $wishlist['visibility'] == 0): ?>
-                                <i class="fas fa-lock" style="margin-left: 5px; font-size: 0.8em;"></i>
-                            <?php endif; ?>
-                        </span>
-                    <?php endif; ?>
+
+                    <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab active" data-tab="wishlist">
+                        <i class="fas fa-heart"></i> Wishlist
+                    </a>
+
                 </div>
             </section>
 
             <!-- Wishlist Content -->
             <section class="profile-posts" id="wishlist-tab">
-                <!-- Display Success/Error Messages -->
-                <?php if (isset($_SESSION['success'])): ?>
-                    <div class="alert-success">
-                        <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; ?>
-                    </div>
-                    <?php unset($_SESSION['success']); ?>
-                <?php endif; ?>
-
-                <?php if (isset($_SESSION['error'])): ?>
-                    <div class="alert-error">
-                        <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; ?>
-                    </div>
-                    <?php unset($_SESSION['error']); ?>
-                <?php endif; ?>
-
                 <div class="posts-grid">
-                    <?php if (!$wishlist): ?>
+                    <?php if ($store): ?>
                         <div class="no-wishlist-message">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <h3>No wishlist found</h3>
-                            <p><?php echo htmlspecialchars($friend['username']); ?> hasn't created a wishlist yet.</p>
+                            <i class="fas fa-store" style="font-size: 3rem; color: #650000; margin-bottom: 15px;"></i>
+                            <h3>Store Account</h3>
+                            <p>Stores don't have wishlists.</p>
+                        </div>
+                    <?php elseif (!$wishlist): ?>
+                        <div class="no-wishlist-message">
+                            <i class="fas fa-heart" style="font-size: 3rem; color: #430000 ; margin-bottom: 15px;"></i>
+                            <h3>No items yet</h3>
+                            <p><?php echo htmlspecialchars($friend['username']); ?> hasn't add any item yet.</p>
                         </div>
                     <?php elseif (!$can_view_wishlist): ?>
                         <div class="private-wishlist-message">
@@ -925,6 +921,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_group_gift']) 
                             <p>Only they can see their wishlist items.</p>
                         </div>
                     <?php else: ?>
+
                         <?php foreach ($wishlist_items as $item): ?>
                             <!-- Wishlist Item -->
                             <div class="profile-post">

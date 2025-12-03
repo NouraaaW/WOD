@@ -9,6 +9,7 @@ $stmt = $pdo->prepare("
     SELECT gg.*, wi.title, wi.image_url, wi.price, 
            u.name as target_name, u.username as target_username,
            (SELECT COUNT(*) FROM contributions cnt1 WHERE cnt1.group_gift_id = gg.group_gift_id AND cnt1.is_paid = 1) as paid_count,
+           (SELECT SUM(amount) FROM contributions cnt2 WHERE cnt2.group_gift_id = gg.group_gift_id AND cnt2.is_paid = 1) as collected_amount,  -- Dynamic calculation
            gg.group_size as total_count,
            c.amount as user_share,
            c.is_paid as user_paid
@@ -356,7 +357,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_paid'])) {
             <header class="dashboard-header">
                 <h1>Group Gift Dashboard</h1>
                 <p style="color: #666;">Manage your group contributions.</p>
-
             </header>
 
             <!-- Active Contributions Section -->
@@ -366,8 +366,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_paid'])) {
                     <?php if (count($contributions) > 0): ?>
                         <?php foreach ($contributions as $contribution): ?>
                             <?php
-                            $progress = $contribution['price'] > 0 ? ($contribution['collected_amount'] / $contribution['price']) * 100 : 0;
-                            $progress = min($progress, 100);
+                            // Use collected_amount from the query result (dynamically calculated)
+                            $item_price = $contribution['price'] ?: 0;
+                            $collected_amount = $contribution['collected_amount'] ?: 0;
+                            
+                            // FIXED PROGRESS CALCULATION
+                            if ($item_price > 0) {
+                                // For items with price: calculate monetary progress
+                                $progress = ($collected_amount / $item_price) * 100;
+                            } else {
+                                // For items without price: calculate participant progress
+                                $paid_participants = $contribution['paid_count'];
+                                $total_participants = $contribution['total_count'];
+                                $progress = ($paid_participants / $total_participants) * 100;
+                            }
+                            
+                            // Ensure progress is between 0 and 100
+                            $progress = min(max($progress, 0), 100);
+                            $progress = round($progress, 1);
                             ?>
                             <div class="group-card">
                                 <div class="card-content">
@@ -378,24 +394,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_paid'])) {
                                     <div class="cost-info">
                                         <div class="cost-item">
                                             <div class="cost-label">Total Cost</div>
-                                            <div class="cost-value"><?php echo number_format($contribution['price'], 2); ?> SAR</div>
+                                            <div class="cost-value">
+                                                <?php if ($item_price > 0): ?>
+                                                    <?php echo number_format($item_price, 2); ?> SAR
+                                                <?php else: ?>
+                                                    Coordinate Offline
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                         <div class="cost-item">
                                             <div class="cost-label">Your Share</div>
-                                            <div class="cost-value"><?php echo number_format($contribution['user_share'], 2); ?> SAR</div>
+                                            <div class="cost-value">
+                                                <?php if ($item_price > 0): ?>
+                                                    <?php echo number_format($contribution['user_share'], 2); ?> SAR
+                                                <?php else: ?>
+                                                    N/A
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div class="progress-section">
                                         <div class="progress-info">
                                             <span>Progress</span>
-                                            <span><?php echo number_format($progress, 0); ?>%</span>
+                                            <span><?php echo $progress; ?>%</span>
                                         </div>
                                         <div class="progress-bar-container">
                                             <div class="progress-bar" style="width: <?php echo $progress; ?>%;"></div>
                                         </div>
                                         <div style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 5px;">
-                                            <?php echo $contribution['paid_count']; ?> of <?php echo $contribution['total_count']; ?> paid
+                                            <?php if ($item_price > 0): ?>
+                                                <?php echo number_format($collected_amount, 2); ?> SAR of <?php echo number_format($item_price, 2); ?> SAR
+                                            <?php else: ?>
+                                                <?php echo $contribution['paid_count']; ?> of <?php echo $contribution['total_count']; ?> confirmed
+                                            <?php endif; ?>
                                         </div>
                                     </div>
 
@@ -405,12 +437,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_paid'])) {
                                                 <input type="hidden" name="mark_paid" value="1">
                                                 <input type="hidden" name="group_gift_id" value="<?php echo $contribution['group_gift_id']; ?>">
                                                 <button type="submit" class="action-btn pay-btn">
-                                                    <i class="fas fa-check-circle"></i> Mark as Paid
+                                                    <i class="fas fa-check-circle"></i>
+                                                    <?php if ($item_price > 0): ?>
+                                                        Mark as Paid
+                                                    <?php else: ?>
+                                                        Confirm Participation
+                                                    <?php endif; ?>
                                                 </button>
                                             </form>
                                         <?php else: ?>
                                             <button class="action-btn pay-btn" disabled>
-                                                <i class="fas fa-check"></i> Paid
+                                                <i class="fas fa-check"></i>
+                                                <?php if ($item_price > 0): ?>
+                                                    Paid
+                                                <?php else: ?>
+                                                    Confirmed
+                                                <?php endif; ?>
                                             </button>
                                         <?php endif; ?>
                                     </div>

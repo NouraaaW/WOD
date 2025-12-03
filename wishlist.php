@@ -10,18 +10,25 @@ $stmt->execute([$username]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 $isStore = isset($user['user_type']) && $user['user_type'] === 'store';
 
-// Get user's wishlist
+// For store accounts, redirect or show appropriate message
+if ($isStore) {
+    // Store accounts don't have wishlists
+    // You can redirect them or show a message
+    header("Location: profile.php");
+    exit();
+}
+
+// Get user's wishlist (only for regular users)
 $stmt = $pdo->prepare("SELECT * FROM wishlists WHERE username = ?");
 $stmt->execute([$username]);
 $wishlist = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Safe visibility value even if wishlist does not exist yet
-$wishlist_visibility = 0; // default: private
+$wishlist_visibility = 1; // default: public
 
 if ($wishlist && isset($wishlist['visibility'])) {
     $wishlist_visibility = (int) $wishlist['visibility'];
 }
-
 
 // Get wishlist items
 $wishlist_items = [];
@@ -31,7 +38,6 @@ if ($wishlist && isset($wishlist['wishlist_id'])) {
     $stmt->execute([$wishlist['wishlist_id']]);
     $wishlist_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
 
 // Get user's posts count
 $stmt = $pdo->prepare("SELECT COUNT(*) as post_count FROM posts WHERE username = ?");

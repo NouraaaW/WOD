@@ -363,12 +363,14 @@ for ($day = 1; $day <= $remaining_days; $day++) {
                 <a href="friend_profile.php?username=<?php echo urlencode($friend_username); ?>" class="edit-profile-btn" style="text-decoration: none; margin-right: 10px;">
                     <i class="fas fa-user"></i> Back To Profile
                 </a>
-                <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="edit-profile-btn" style="text-decoration: none;">
-                    <i class="fas fa-heart"></i> Back To Wishlist
-                </a>
 
+                <?php if ($friend['user_type'] !== 'store'): ?>
+                    <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="edit-profile-btn" style="text-decoration: none;">
+                        <i class="fas fa-heart"></i> Back To Wishlist
+                    </a>
+                <?php endif; ?>
             </div>
-            <br>  <br>
+            <br><br>
 
             <!-- Friend's Upcoming Events -->
             <div class="upcoming-events" style="margin-bottom: 40px;">

@@ -12,12 +12,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($password !== $confirm_password) {
         $error = "Passwords do not match";
     } else {
-// In signup.php, after the registration logic
         if ($auth->register($username, $name, $email, $password, $user_type)) {
             // Set default profile picture for new users
             $default_photo = 'images/Default.png';
             $stmt = $pdo->prepare("UPDATE users SET photo_url = ? WHERE username = ?");
             $stmt->execute([$default_photo, $username]);
+            
+            // CREATE WISHLIST ONLY FOR REGULAR USERS, NOT FOR STORES
+            if ($user_type === 'user') {
+                // Create wishlist with public visibility by default
+                $stmt = $pdo->prepare("INSERT INTO wishlists (username, visibility) VALUES (?, 1)");
+                $stmt->execute([$username]);
+            }
 
             header("Location: login.php");
             exit();

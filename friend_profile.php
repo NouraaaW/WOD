@@ -33,6 +33,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     } elseif ($_POST['action'] === 'add_to_wishlist' && isset($_POST['post_id'])) {
         // Add post to user's wishlist
         $post_id = $_POST['post_id'];
+        $current_user = getCurrentUser();
+
+        // Check if current user is a store
+        $stmt = $pdo->prepare("SELECT user_type FROM users WHERE username = ?");
+        $stmt->execute([$current_user]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Store accounts can't add to wishlist
+        if ($user && $user['user_type'] === 'store') {
+            $_SESSION['error'] = "Store accounts cannot add items to wishlist.";
+            header("Location: friend_profile.php?username=" . urlencode($friend_username));
+            exit();
+        }
 
         // Get post details
         $stmt = $pdo->prepare("SELECT * FROM posts WHERE post_id = ?");
@@ -126,7 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header("Location: friend_profile.php?username=" . urlencode($friend_username));
     exit();
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -384,20 +396,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     <a href="friend_profile.php?username=<?php echo urlencode($friend_username); ?>" class="tab active" data-tab="posts">
                         <i class="fas fa-gift"></i> Posts
                     </a>
-                    <?php if ($wishlist_result && $wishlist_visibility == 1): ?>
-                        <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab" data-tab="wishlist">
-                            <i class="fas fa-heart"></i> Wishlist
-                        </a>
-                    <?php elseif ($wishlist_result && $wishlist_visibility == 0 && $is_following): ?>
-                        <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab" data-tab="wishlist">
-                            <i class="fas fa-heart"></i> Wishlist <i class="fas fa-lock" style="margin-left: 5px; font-size: 0.8em;"></i>
-                        </a>
-                    <?php else: ?>
-                        <span class="tab wishlist-private" title="<?php echo $wishlist_result ? 'Wishlist is private' : 'No wishlist'; ?>">
-                            <i class="fas fa-heart"></i> Wishlist 
-                            <?php if ($wishlist_result && $wishlist_visibility == 0): ?>
-                                <i class="fas fa-lock" style="margin-left: 5px; font-size: 0.8em;"></i>
+                    <?php
+                    // Only show wishlist tab if user is NOT a store
+                    if ($friend['type'] !== 'store'):
+                        // Show wishlist tab if wishlist exists OR doesn't exist yet (allow empty wishlist)
+                        if ($wishlist_result):
+                            // Wishlist exists - check visibility
+                            if ($wishlist_visibility == 1 || ($wishlist_visibility == 0 && $is_following)):
+                                ?>
+                                <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab" data-tab="wishlist">
+                                    <i class="fas fa-heart"></i>  Wishlist
+                                    <?php if ($wishlist_visibility == 0): ?>
+                                        <i class="fas fa-lock" style="margin-left: 5px; font-size: 0.8em;"></i>
+                                    <?php endif; ?>
+                                </a>
+                            <?php else: ?>
+                                <!-- Private wishlist and user is not following -->
+                                <span class="tab wishlist-private" title="Wishlist is private">
+                                    <i class="fas fa-heart"></i>  Wishlist 
+                                    <i class="fas fa-lock" style="margin-left: 5px; font-size: 0.8em;"></i>
+                                </span>
                             <?php endif; ?>
+                        <?php else: ?>
+                            <!-- No wishlist exists yet - still show clickable tab for empty wishlist -->
+                            <a href="friend-wishlist.php?username=<?php echo urlencode($friend_username); ?>" class="tab" data-tab="wishlist">
+                                <i class="fas fa-heart"></i>  Wishlist
+                            </a>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <!-- Store accounts don't have wishlist tab -->
+                        <span class="tab wishlist-private" title="Stores don't have wishlists">
+                            <i class="fas fa-heart"></i>  Wishlist <i class="fas fa-store" style="margin-left: 5px; font-size: 0.8em;"></i>
                         </span>
                     <?php endif; ?>
                 </div>
